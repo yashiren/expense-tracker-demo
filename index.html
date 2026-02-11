@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expense Tracker - Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: #F5F5F5;
+            padding-bottom: 80px;
+        }
+        
+        .phone-frame {
+            max-width: 400px;
+            margin: 20px auto;
+            background: white;
+            border-radius: 30px;
+            box-shadow: 0 10px 50px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: white;
+            padding: 50px 20px 20px;
+            border-bottom: 1px solid #E0E0E0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .refresh-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+        }
+        
+        .summary {
+            background: #4A90E2;
+            padding: 40px 20px;
+            text-align: center;
+            color: white;
+        }
+        
+        .summary-label {
+            font-size: 16px;
+            margin-bottom: 10px;
+            opacity: 0.9;
+        }
+        
+        .summary-amount {
+            font-size: 48px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .summary-subtext {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+        
+        .transactions {
+            padding: 20px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        
+        .transaction-card {
+            background: white;
+            padding: 16px;
+            margin-bottom: 12px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: flex-start;
+        }
+        
+        .category-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 12px;
+            margin-top: 4px;
+            flex-shrink: 0;
+        }
+        
+        .transaction-content {
+            flex: 1;
+        }
+        
+        .merchant {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+        
+        .details {
+            font-size: 13px;
+            color: #999;
+        }
+        
+        .amount-container {
+            text-align: right;
+        }
+        
+        .amount {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .card {
+            font-size: 12px;
+            color: #999;
+            margin-top: 4px;
+        }
+        
+        .demo-note {
+            background: #FFF3CD;
+            padding: 15px;
+            margin: 20px;
+            border-radius: 8px;
+            border: 1px solid #FFE69C;
+            font-size: 14px;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="phone-frame">
+        <!-- Header -->
+        <div class="header">
+            <div class="title">Expense Tracker</div>
+            <button class="refresh-btn" onclick="loadTransactions()">🔄</button>
+        </div>
+        
+        <!-- Summary -->
+        <div class="summary">
+            <div class="summary-label">Total Spent</div>
+            <div class="summary-amount" id="totalAmount">AED 0.00</div>
+            <div class="summary-subtext"><span id="txnCount">0</span> transactions found</div>
+        </div>
+        
+        <!-- Demo Note -->
+        <div class="demo-note">
+            📱 <strong>Demo Mode</strong> - This shows sample transactions parsed from UAE bank SMS messages. 
+            Real app reads SMS automatically on your phone.
+        </div>
+        
+        <!-- Transaction List -->
+        <div class="transactions" id="transactionList">
+            <!-- Transactions will be loaded here -->
+        </div>
+    </div>
+    
+    <script>
+        // Sample SMS messages (real format from UAE banks)
+        const sampleSMS = [
+            {
+                message: "AED 125.50 spent at CARREFOUR DUBAI MALL on 11/02/2026 using Card ending 4321",
+                parsed: {
+                    amount: 125.50,
+                    currency: "AED",
+                    merchant: "CARREFOUR DUBAI MALL",
+                    category: "food",
+                    bank: "Emirates NBD",
+                    date: "11 Feb 2026",
+                    cardLast4: "4321"
+                }
+            },
+            {
+                message: "ENBD: AED 45.00 debited at COSTA COFFEE",
+                parsed: {
+                    amount: 45.00,
+                    currency: "AED",
+                    merchant: "COSTA COFFEE",
+                    category: "food",
+                    bank: "Emirates NBD",
+                    date: "10 Feb 2026",
+                    cardLast4: "4321"
+                }
+            },
+            {
+                message: "ADCB Alert: Transaction of AED 250.00 at UBER",
+                parsed: {
+                    amount: 250.00,
+                    currency: "AED",
+                    merchant: "UBER",
+                    category: "transport",
+                    bank: "ADCB",
+                    date: "10 Feb 2026",
+                    cardLast4: "5678"
+                }
+            },
+            {
+                message: "FAB: AED 1,500.00 paid to ADNOC Petrol Station",
+                parsed: {
+                    amount: 1500.00,
+                    currency: "AED",
+                    merchant: "ADNOC PETROL STATION",
+                    category: "transport",
+                    bank: "First Abu Dhabi Bank",
+                    date: "09 Feb 2026",
+                    cardLast4: "9012"
+                }
+            },
+            {
+                message: "MASHREQ Card ending 3456 - AED 89.99 at AMAZON.AE",
+                parsed: {
+                    amount: 89.99,
+                    currency: "AED",
+                    merchant: "AMAZON.AE",
+                    category: "shopping",
+                    bank: "Mashreq Bank",
+                    date: "09 Feb 2026",
+                    cardLast4: "3456"
+                }
+            },
+            {
+                message: "AED 350.00 debited at VOX CINEMAS DUBAI MALL",
+                parsed: {
+                    amount: 350.00,
+                    currency: "AED",
+                    merchant: "VOX CINEMAS",
+                    category: "entertainment",
+                    bank: "Emirates NBD",
+                    date: "08 Feb 2026",
+                    cardLast4: "4321"
+                }
+            },
+            {
+                message: "ADCB: AED 450.00 paid to IKEA UAE",
+                parsed: {
+                    amount: 450.00,
+                    currency: "AED",
+                    merchant: "IKEA UAE",
+                    category: "shopping",
+                    bank: "ADCB",
+                    date: "07 Feb 2026",
+                    cardLast4: "5678"
+                }
+            },
+            {
+                message: "Transaction approved: AED 85.50 at SPINNEYS SUPERMARKET",
+                parsed: {
+                    amount: 85.50,
+                    currency: "AED",
+                    merchant: "SPINNEYS SUPERMARKET",
+                    category: "food",
+                    bank: "First Abu Dhabi Bank",
+                    date: "07 Feb 2026",
+                    cardLast4: "9012"
+                }
+            }
+        ];
+        
+        const categoryColors = {
+            food: '#FF6B6B',
+            transport: '#4ECDC4',
+            shopping: '#95E1D3',
+            entertainment: '#F38181',
+            bills: '#AA96DA',
+            health: '#FCBAD3',
+            other: '#A8DADC'
+        };
+        
+        function loadTransactions() {
+            const container = document.getElementById('transactionList');
+            container.innerHTML = '';
+            
+            let total = 0;
+            
+            sampleSMS.forEach(item => {
+                const txn = item.parsed;
+                total += txn.amount;
+                
+                const card = document.createElement('div');
+                card.className = 'transaction-card';
+                card.innerHTML = `
+                    <div class="category-dot" style="background-color: ${categoryColors[txn.category]}"></div>
+                    <div class="transaction-content">
+                        <div class="merchant">${txn.merchant}</div>
+                        <div class="details">${txn.bank} • ${txn.category} • ${txn.date}</div>
+                    </div>
+                    <div class="amount-container">
+                        <div class="amount">${txn.currency} ${txn.amount.toFixed(2)}</div>
+                        ${txn.cardLast4 ? `<div class="card">••${txn.cardLast4}</div>` : ''}
+                    </div>
+                `;
+                
+                container.appendChild(card);
+            });
+            
+            document.getElementById('totalAmount').textContent = `AED ${total.toFixed(2)}`;
+            document.getElementById('txnCount').textContent = sampleSMS.length;
+        }
+        
+        // Load on page load
+        window.onload = loadTransactions;
+    </script>
+</body>
+</html>
